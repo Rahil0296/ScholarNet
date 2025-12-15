@@ -1,6 +1,7 @@
 # FastAPI app initialization
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.routes import read_aloud
 
 from app.routes import summarizer, qa, mcq, pdf
 
@@ -24,6 +25,7 @@ app.include_router(summarizer.router, prefix="/api", tags=["Summarizer"])
 app.include_router(qa.router, prefix="/api", tags=["Q&A"])
 app.include_router(mcq.router, prefix="/api", tags=["MCQ"])
 app.include_router(pdf.router, prefix="/api", tags=["PDF"])
+app.include_router(read_aloud.router, prefix="/api", tags=["ReadAloud"])
 
 
 @app.get("/")
