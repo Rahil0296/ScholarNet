@@ -1,65 +1,162 @@
-# /api/mcq endpoint
+# /api/mcq endpoints
 from fastapi import APIRouter, HTTPException
-from app.models.schemas import MCQRequest, MCQResponse, MCQQuestion, MCQOption
-from app.services.mcq_generator import generate_mcqs
+from pydantic import BaseModel
+from typing import Optional, List, Dict
+from app.services.mcq_generator import generate_mcqs, evaluate_mcq_answers
 
 router = APIRouter()
 
 
+class MCQRequest(BaseModel):
+    text: Optional[str] = None
+    document_id: Optional[str] = None
+    num_questions: int = 10
+
+
+class MCQOption(BaseModel):
+    option: str
+    is_correct: bool
+
+
+class MCQQuestion(BaseModel):
+    question: str
+    topic: str
+    options: List[MCQOption]
+    explanation: Optional[str] = None
+
+
+class TopicInfo(BaseModel):
+    name: str
+    question_indices: List[int]
+    question_count: int
+
+
+class MCQResponse(BaseModel):
+    status: str
+    questions: List[dict]
+    total_questions: int
+    topics: List[TopicInfo]
+    source: Optional[str] = None
+    message: Optional[str] = None
+
+
+class EvaluateRequest(BaseModel):
+    questions: List[dict]
+    user_answers: Dict[int, int]  # question_index -> selected_option_index
+
+
+class TopicAnalysis(BaseModel):
+    topic: str
+    total: int
+    correct: int
+    incorrect: int
+    percentage: int
+    performance: str  # excellent, strong, good, needs_practice, weak
+    questions: List[dict]
+
+
+class EvaluateResponse(BaseModel):
+    total_questions: int
+    total_correct: int
+    overall_percentage: int
+    topic_analysis: List[TopicAnalysis]
+    weak_topics: List[str]
+    strong_topics: List[str]
+    recommendations: List[str]
+
+
 @router.post("/mcq", response_model=MCQResponse)
-async def generate_mcq(request: MCQRequest):
+async def create_mcqs(request: MCQRequest):
     """
-    Generate multiple choice questions from text or uploaded document.
+    Generate MCQs from text or document.
     
-    Usage:
-    1. With direct text: {"text": "...", "num_questions": 10}
-    2. With document_id: {"document_id": "uuid", "num_questions": 10}
-    
-    Returns:
-    - List of MCQ questions with 4 options each
-    - Correct answers marked with is_correct: true
-    - Explanations for each question
+    Returns questions with topics for frontend display.
     """
     try:
-        # Validate input
         if not request.text and not request.document_id:
             raise HTTPException(
-                status_code=400,
-                detail="Either 'text' or 'document_id' must be provided"
+                status_code=400, 
+                detail="Either text or document_id must be provided"
             )
         
-        # Validate num_questions
-        if request.num_questions < 1 or request.num_questions > 20:
-            raise HTTPException(
-                status_code=400,
-                detail="num_questions must be between 1 and 20"
-            )
-        
-        # Generate MCQs
         result = await generate_mcqs(
             text=request.text,
             document_id=request.document_id,
             num_questions=request.num_questions
         )
         
-        # Check for errors
         if result["status"] == "error":
             raise HTTPException(status_code=400, detail=result["message"])
         
-        # Format questions
-        questions = []
-        for q in result["questions"]:
-            options = [
-                MCQOption(option=opt["option"], is_correct=opt["is_correct"])
-                for opt in q.get("options", [])
-            ]
-            questions.append(MCQQuestion(
-                question=q["question"],
-                options=options,
-                explanation=q.get("explanation")
-            ))
+        return MCQResponse(
+            status=result["status"],
+            questions=result["questions"],
+            total_questions=result["total_questions"],
+            topics=[TopicInfo(**t) for t in result["topics"]],
+            source=result.get("source")
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/mcq/evaluate", response_model=EvaluateResponse)
+async def evaluate_answers(request: EvaluateRequest):
+    """
+    Evaluate user's MCQ answers and provide topic-wise analysis.
+    
+    This endpoint receives the questions and user's answers,
+    then returns detailed feedback including:
+    - Overall score
+    - Topic-wise breakdown
+    - Weak/strong areas
+    - Study recommendations
+    """
+    try:
+        if not request.questions:
+            raise HTTPException(status_code=400, detail="Questions are required")
         
-        return MCQResponse(questions=questions)
+        if not request.user_answers:
+            raise HTTPException(status_code=400, detail="User answers are required")
+        
+        result = await evaluate_mcq_answers(
+            questions=request.questions,
+            user_answers=request.user_answers
+        )
+        
+        return EvaluateResponse(**result)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/mcq/topics/{document_id}")
+async def get_document_topics(document_id: str):
+    """
+    Get available topics for a document.
+    
+    Useful for filtering or displaying topic categories.
+    """
+    try:
+        # Generate a small set of MCQs to extract topics
+        result = await generate_mcqs(
+            document_id=document_id,
+            num_questions=5
+        )
+        
+        if result["status"] == "error":
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+        return {
+            "document_id": document_id,
+            "topics": [t["name"] for t in result["topics"]]
+        }
     
     except HTTPException:
         raise

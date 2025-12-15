@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../services/api';
 
 function Summary({ documentId }) {
@@ -6,8 +6,24 @@ function Summary({ documentId }) {
   const [summary, setSummary] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  
+ 
+  const [isReading, setIsReading] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+
+  
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
 
   const handleGenerate = async () => {
+    // ✅ Stop any ongoing reading when generating new summary
+    window.speechSynthesis.cancel();
+    setIsReading(false);
+    setIsPaused(false);
+
     setLoading(true);
     setSummary('');
 
@@ -27,10 +43,63 @@ function Summary({ documentId }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  
+  const startReadAloud = () => {
+    if (!summary) return;
+
+    // Cancel any existing speech
+    window.speechSynthesis.cancel();
+
+    setTimeout(() => {
+    
+      const utterance = new SpeechSynthesisUtterance(summary);
+      
+      utterance.lang = 'en-US';
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+
+      utterance.onstart = () => {
+        setIsReading(true);
+        setIsPaused(false);
+      };
+
+      utterance.onend = () => {
+        setIsReading(false);
+        setIsPaused(false);
+      };
+
+      utterance.onerror = (event) => {
+        console.error('TTS Error:', event);
+        setIsReading(false);
+        setIsPaused(false);
+      };
+
+      // ✅ Start reading from beginning
+      window.speechSynthesis.speak(utterance);
+    }, 100);
+  };
+
+  const pauseReadAloud = () => {
+    window.speechSynthesis.pause();
+    setIsPaused(true);
+  };
+
+  const resumeReadAloud = () => {
+    window.speechSynthesis.resume();
+    setIsPaused(false);
+  };
+
+  const stopReadAloud = () => {
+    window.speechSynthesis.cancel();
+    setIsReading(false);
+    setIsPaused(false);
+  };
+
   return (
     <div className="summary-page">
       <div className="summary-header">
-        <div className="summary-icon">📝</div>
+        <div className="summary-icon">📄</div>
         <h1>Document Summary</h1>
         <p>Generate AI-powered summaries of your document</p>
       </div>
@@ -78,6 +147,35 @@ function Summary({ documentId }) {
                 {copied ? '✓ Copied!' : '📋 Copy'}
               </button>
             </div>
+
+            
+            <div className="read-aloud-controls">
+              {!isReading || isPaused ? (
+                <button 
+                  className="btn-read-aloud"
+                  onClick={isPaused ? resumeReadAloud : startReadAloud}
+                >
+                  {isPaused ? '▶️ Resume Reading' : '🔊 Read Aloud'}
+                </button>
+              ) : (
+                <button 
+                  className="btn-pause"
+                  onClick={pauseReadAloud}
+                >
+                  ⏸️ Pause
+                </button>
+              )}
+              
+              {(isReading || isPaused) && (
+                <button 
+                  className="btn-stop"
+                  onClick={stopReadAloud}
+                >
+                  ⏹️ Stop
+                </button>
+              )}
+            </div>
+
             <div className="result-text">
               {summary}
             </div>

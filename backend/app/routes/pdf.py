@@ -109,3 +109,30 @@ async def delete_document(document_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+# Add to backend/app/routes/pdf.py
+
+@router.get("/documents/{document_id}/text")
+async def get_document_text(document_id: str):
+    """Get the full text of a document for read aloud."""
+    from app.utils.vector_store import get_document_by_id
+    
+    document = get_document_by_id(document_id)
+    
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    text = document['text']
+    
+    # Split into sentences for read aloud processing
+    import re
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    sentences = [s.strip() for s in sentences if s.strip() and len(s.strip()) > 10]
+    
+    return {
+        "document_id": document_id,
+        "text": text,
+        "sentences": sentences,
+        "sentence_count": len(sentences)
+    }

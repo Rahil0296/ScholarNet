@@ -45,46 +45,65 @@ class ScholarNetAPI {
   }
 
   // Ask Question
-// Update askQuestion in api.js
-async askQuestion(question, documentId, sessionId = null) {
-  const response = await fetch(`${this.baseURL}/api/qa`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      question,
-      document_id: documentId,
-      session_id: sessionId,
-    }),
-  });
+  async askQuestion(question, documentId, sessionId = null) {
+    const response = await fetch(`${this.baseURL}/api/qa`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        question,
+        document_id: documentId,
+        session_id: sessionId,
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to get answer');
+    if (!response.ok) {
+      throw new Error('Failed to get answer');
+    }
+
+    return response.json();
   }
 
-  return response.json();
-}
+  // Generate MCQs - Default 10 questions
+  async generateMCQs(documentId, numQuestions = 10) {
+    const response = await fetch(`${this.baseURL}/api/mcq`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        document_id: documentId,
+        num_questions: numQuestions
+      }),
+    });
 
-  // Generate MCQs
-async generateMCQs(documentId) {
-  const response = await fetch(`${this.baseURL}/api/mcq`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      document_id: documentId,
-      num_questions: 10
-    }),
-  });
+    if (!response.ok) {
+      throw new Error('Failed to generate MCQs');
+    }
 
-  if (!response.ok) {
-    throw new Error('Failed to generate MCQs');
+    return response.json();
   }
 
-  return response.json();
-}
+  // Evaluate MCQ answers and get topic analysis
+  async evaluateMCQs(questions, userAnswers) {
+    const response = await fetch(`${this.baseURL}/api/mcq/evaluate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        questions: questions,
+        user_answers: userAnswers
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to evaluate MCQs');
+    }
+
+    return response.json();
+  }
 
   // List Documents
   async listDocuments() {
@@ -105,6 +124,37 @@ async generateMCQs(documentId) {
 
     if (!response.ok) {
       throw new Error('Failed to delete document');
+    }
+
+    return response.json();
+  }
+
+  // Read Aloud - Get semantic chunks
+  async getReadAloudChunks(sentences, numClusters = 5) {
+    const response = await fetch(`${this.baseURL}/api/read-aloud`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        sentences,
+        num_clusters: numClusters,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to process text for read aloud');
+    }
+
+    return response.json();
+  }
+
+  // Get document text for read aloud
+  async getDocumentText(documentId) {
+    const response = await fetch(`${this.baseURL}/api/documents/${documentId}/text`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to get document text');
     }
 
     return response.json();

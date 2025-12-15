@@ -1,6 +1,5 @@
-# ChromaDB initialization - OPTIMIZED & FIXED
+# ChromaDB initialization - FIXED for newer ChromaDB versions
 import chromadb
-from chromadb.config import Settings as ChromaSettings
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
 from app.config import settings
@@ -10,6 +9,22 @@ import shutil
 import uuid
 
 _vector_store = None
+_chroma_client = None
+
+
+def get_chroma_client():
+    """Get or create ChromaDB client with proper settings."""
+    global _chroma_client
+    
+    if _chroma_client is None:
+        os.makedirs(settings.CHROMA_DB_PATH, exist_ok=True)
+        
+        # Use PersistentClient for newer ChromaDB versions (0.4.0+)
+        _chroma_client = chromadb.PersistentClient(
+            path=settings.CHROMA_DB_PATH
+        )
+    
+    return _chroma_client
 
 
 def get_vector_store() -> Chroma:
@@ -24,8 +39,11 @@ def get_vector_store() -> Chroma:
         
         os.makedirs(settings.CHROMA_DB_PATH, exist_ok=True)
         
+        # Get the client
+        client = get_chroma_client()
+        
         _vector_store = Chroma(
-            persist_directory=settings.CHROMA_DB_PATH,
+            client=client,
             embedding_function=embeddings,
             collection_name="scholarnet_docs"
         )
@@ -79,21 +97,21 @@ def add_documents_to_store(texts: list, metadatas: list = None, document_id: str
                 metadatas=batch_metadatas
             )
         
-        vector_store.persist()
+        # NOTE: persist() is no longer needed with PersistentClient
+        # ChromaDB auto-persists with PersistentClient
+        print(f"✅ Successfully added {len(texts)} chunks for document {document_id}")
         return True
     
     except Exception as e:
+        import traceback
         print(f"Error adding documents: {e}")
+        traceback.print_exc()
         return False
 
 
-# ✅ NEW: Retrieve full document by ID
 def get_document_by_id(document_id: str) -> Optional[dict]:
     """
     Retrieve all chunks of a document and reconstruct full text.
-    
-    Returns:
-        dict with 'text', 'metadata', and 'chunks_count'
     """
     try:
         vector_store = get_vector_store()
@@ -108,8 +126,18 @@ def get_document_by_id(document_id: str) -> Optional[dict]:
         if not results or not results.get('documents'):
             return None
         
-        # Combine all chunks
-        full_text = "\n\n".join(results['documents'])
+        # Sort chunks by chunk_index if available
+        chunks_with_index = []
+        for i, doc in enumerate(results['documents']):
+            metadata = results['metadatas'][i] if results['metadatas'] else {}
+            chunk_index = metadata.get('chunk_index', i)
+            chunks_with_index.append((chunk_index, doc))
+        
+        # Sort by chunk index
+        chunks_with_index.sort(key=lambda x: x[0])
+        
+        # Combine all chunks in order
+        full_text = "\n\n".join([chunk[1] for chunk in chunks_with_index])
         
         # Get metadata from first chunk
         metadata = results['metadatas'][0] if results['metadatas'] else {}
@@ -122,11 +150,12 @@ def get_document_by_id(document_id: str) -> Optional[dict]:
         }
     
     except Exception as e:
+        import traceback
         print(f"Error retrieving document: {e}")
+        traceback.print_exc()
         return None
 
 
-# ✅ NEW: List all documents
 def list_all_documents() -> list:
     """Get list of all unique documents in the store."""
     try:
@@ -147,21 +176,34 @@ def list_all_documents() -> list:
                 documents[doc_id] = {
                     'document_id': doc_id,
                     'filename': metadata.get('source', 'Unknown'),
-                    'page': metadata.get('page', 0)
+                    'pages': metadata.get('pages', 0),
+                    'total_chunks': metadata.get('total_chunks', 1)
                 }
         
         return list(documents.values())
     
     except Exception as e:
+        import traceback
         print(f"Error listing documents: {e}")
+        traceback.print_exc()
         return []
 
 
-def search_documents(query: str, k: int = 3) -> list:
-    """Search for similar documents."""
+def search_documents(query: str, k: int = 3, document_id: str = None) -> list:
+    """Search for similar documents, optionally filtered by document_id."""
     try:
         vector_store = get_vector_store()
-        results = vector_store.similarity_search_with_score(query, k=k)
+        
+        if document_id:
+            # Search within specific document
+            results = vector_store.similarity_search_with_score(
+                query, 
+                k=k,
+                filter={"document_id": document_id}
+            )
+        else:
+            results = vector_store.similarity_search_with_score(query, k=k)
+        
         return results
     except Exception as e:
         print(f"Error searching documents: {e}")
@@ -170,14 +212,17 @@ def search_documents(query: str, k: int = 3) -> list:
 
 def clear_vector_store() -> bool:
     """Clear all documents from the vector store and reset."""
-    global _vector_store
+    global _vector_store, _chroma_client
     
     try:
+        # Close existing connections
+        _vector_store = None
+        _chroma_client = None
+        
         if os.path.exists(settings.CHROMA_DB_PATH):
             shutil.rmtree(settings.CHROMA_DB_PATH)
         
-        _vector_store = None
-        print("Vector store cleared successfully")
+        print("✅ Vector store cleared successfully")
         return True
     
     except Exception as e:
@@ -211,7 +256,7 @@ def delete_documents_by_metadata(metadata_filter: dict) -> bool:
         
         if results and results.get('ids'):
             collection.delete(ids=results['ids'])
-            print(f"Deleted {len(results['ids'])} documents")
+            print(f"✅ Deleted {len(results['ids'])} chunks")
             return True
         
         return False
@@ -221,7 +266,6 @@ def delete_documents_by_metadata(metadata_filter: dict) -> bool:
         return False
 
 
-# ✅ NEW: Delete document by ID
 def delete_document_by_id(document_id: str) -> bool:
     """Delete all chunks of a specific document."""
     return delete_documents_by_metadata({"document_id": document_id})
