@@ -1,41 +1,114 @@
-// API calls to backend
+// API service for backend communication
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+class ScholarNetAPI {
+  constructor() {
+    this.baseURL = API_URL;
+  }
 
-export const summarizeText = async (text) => {
-  const response = await fetch(`${API_BASE_URL}/summarize`, {
+  // PDF Upload
+  async uploadPDF(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${this.baseURL}/api/pdf-upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload PDF');
+    }
+
+    return response.json();
+  }
+
+  // Generate Summary
+  async generateSummary(documentId, summaryType = 'learning', maxLength = 500) {
+    const response = await fetch(`${this.baseURL}/api/summarize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        document_id: documentId,
+        summary_type: summaryType,
+        max_length: maxLength,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to generate summary');
+    }
+
+    return response.json();
+  }
+
+  // Ask Question
+// Update askQuestion in api.js
+async askQuestion(question, documentId, sessionId = null) {
+  const response = await fetch(`${this.baseURL}/api/qa`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      question,
+      document_id: documentId,
+      session_id: sessionId,
+    }),
   });
-  return response.json();
-};
 
-export const askQuestion = async (question, context) => {
-  const response = await fetch(`${API_BASE_URL}/qa`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, context }),
-  });
-  return response.json();
-};
+  if (!response.ok) {
+    throw new Error('Failed to get answer');
+  }
 
-export const generateMCQ = async (text, numQuestions) => {
-  const response = await fetch(`${API_BASE_URL}/mcq`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, num_questions: numQuestions }),
-  });
   return response.json();
-};
+}
 
-export const processPDF = async (file) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  
-  const response = await fetch(`${API_BASE_URL}/pdf-read`, {
+  // Generate MCQs
+async generateMCQs(documentId) {
+  const response = await fetch(`${this.baseURL}/api/mcq`, {
     method: 'POST',
-    body: formData,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      document_id: documentId,
+      num_questions: 10
+    }),
   });
+
+  if (!response.ok) {
+    throw new Error('Failed to generate MCQs');
+  }
+
   return response.json();
-};
+}
+
+  // List Documents
+  async listDocuments() {
+    const response = await fetch(`${this.baseURL}/api/documents/list`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to list documents');
+    }
+
+    return response.json();
+  }
+
+  // Delete Document
+  async deleteDocument(documentId) {
+    const response = await fetch(`${this.baseURL}/api/documents/${documentId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete document');
+    }
+
+    return response.json();
+  }
+}
+
+export default new ScholarNetAPI();

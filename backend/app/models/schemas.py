@@ -29,14 +29,14 @@ class SummarizeResponse(BaseModel):
 class QARequest(BaseModel):
     question: str
     context: Optional[str] = None
-    session_id: Optional[str] = None  # ✅ NEW: For conversation history
-    use_history: Optional[bool] = True  # ✅ NEW: Enable/disable history
-
+    document_id: Optional[str] = None
+    session_id: Optional[str] = None
+    use_history: Optional[bool] = True
 
 class QAResponse(BaseModel):
     answer: str
     sources: Optional[List[str]] = None
-    session_id: Optional[str] = None  # ✅ NEW: Return session_id
+    session_id: Optional[str] = None  
 
 
 class MCQRequest(BaseModel):
@@ -71,3 +71,20 @@ class DocumentUploadResponse(BaseModel):
     filename: str
     chunks: int
     message: str
+
+# --- READ ALOUD SCHEMAS ---
+
+class ReadAloudRequest(BaseModel):
+    sentences: List[str]
+    num_clusters: Optional[int] = 5
+
+
+class ReadAloudChunk(BaseModel):
+    chunk_id: int
+    num_sentences: int
+    text: str
+
+class ReadAloudResponse(BaseModel):
+    chunks: List[ReadAloudChunk]
+
+    
