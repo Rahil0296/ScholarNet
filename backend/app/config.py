@@ -11,6 +11,9 @@ class Settings:
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "./uploads")
     MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
     ALLOWED_EXTENSIONS: list = [".pdf"]
+    DEFAULT_EMBEDDING_MODEL: str = "text-embedding-3-small"
+    DEFAULT_RETRIEVAL_K: int = 2  # Fewer docs = faster
+
 
 
 settings = Settings()

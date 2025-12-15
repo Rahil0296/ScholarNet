@@ -8,15 +8,47 @@ router = APIRouter()
 
 @router.post("/mcq", response_model=MCQResponse)
 async def generate_mcq(request: MCQRequest):
-    """Generate MCQs from the provided text."""
+    """
+    Generate multiple choice questions from text or uploaded document.
+    
+    Usage:
+    1. With direct text: {"text": "...", "num_questions": 10}
+    2. With document_id: {"document_id": "uuid", "num_questions": 10}
+    
+    Returns:
+    - List of MCQ questions with 4 options each
+    - Correct answers marked with is_correct: true
+    - Explanations for each question
+    """
     try:
-        if not request.text.strip():
-            raise HTTPException(status_code=400, detail="Text cannot be empty")
+        # Validate input
+        if not request.text and not request.document_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Either 'text' or 'document_id' must be provided"
+            )
         
-        questions_data = await generate_mcqs(request.text, request.num_questions)
+        # Validate num_questions
+        if request.num_questions < 1 or request.num_questions > 20:
+            raise HTTPException(
+                status_code=400,
+                detail="num_questions must be between 1 and 20"
+            )
         
+        # Generate MCQs
+        result = await generate_mcqs(
+            text=request.text,
+            document_id=request.document_id,
+            num_questions=request.num_questions
+        )
+        
+        # Check for errors
+        if result["status"] == "error":
+            raise HTTPException(status_code=400, detail=result["message"])
+        
+        # Format questions
         questions = []
-        for q in questions_data:
+        for q in result["questions"]:
             options = [
                 MCQOption(option=opt["option"], is_correct=opt["is_correct"])
                 for opt in q.get("options", [])
@@ -29,5 +61,7 @@ async def generate_mcq(request: MCQRequest):
         
         return MCQResponse(questions=questions)
     
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

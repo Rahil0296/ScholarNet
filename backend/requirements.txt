@@ -1,12 +1,23 @@
-fastapi==0.109.0
-uvicorn==0.27.0
-python-dotenv==1.0.0
-pydantic==2.5.3
-langchain==0.1.0
-langchain-openai==0.0.5
-langchain-community==0.0.13
-openai==1.10.0
-chromadb==0.4.22
-PyPDF2==3.0.1
-python-multipart==0.0.6
-gtts==2.5.0
+# FastAPI
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# Pydantic & Environment
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+
+# LangChain - Core components only
+langchain-openai>=0.1.0
+langchain-core>=0.2.0
+langchain-community>=0.0.20
+
+# Vector Store
+chromadb>=0.4.22
+
+# Document Processing
+pypdf>=3.17.0
+python-docx>=1.0.0
+
+# Utilities
+tiktoken>=0.5.0
