@@ -3,10 +3,10 @@ from langchain_openai import ChatOpenAI
 from app.config import settings
 
 
-def get_llm(model: str = "gpt-3.5-turbo", temperature: float = 0.7):
+def get_llm(model: str = "gpt-4", temperature: float = 0.1):
     """Initialize and return LLM instance."""
     return ChatOpenAI(
-        model=model,
+        model="gpt-5-nano" if model == "gpt-4" else model,
         temperature=temperature,
         openai_api_key=settings.OPENAI_API_KEY
     )
