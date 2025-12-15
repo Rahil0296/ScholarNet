@@ -7,20 +7,30 @@ from app.utils.vector_store import get_vector_store
 
 async def answer_question(question: str, context: str = None) -> dict:
     """Answer question using context or vector store."""
-    llm = get_llm(temperature=0.5)
+    llm = get_llm(temperature=0.1)
     
     if context:
         # Direct context-based QA
         prompt = PromptTemplate(
             input_variables=["context", "question"],
-            template="""Based on the following context, answer the question.
-            
-            Context: {context}
-            
-            Question: {question}
-            
-            Answer:"""
-        )
+            template="""
+        You are an AI assistant answering questions strictly based on the provided document context.
+        
+        Instructions:
+        - Use ONLY the information present in the context.
+        - If the answer is not found in the context, clearly say: "The document does not contain this information."
+        - Be concise, accurate, and factual.
+        - Do NOT make assumptions or add external knowledge.
+
+        Context:
+        {context}
+
+        Question:
+        {question}
+
+        Answer:
+        """
+)
         
         from langchain.chains import LLMChain
         chain = LLMChain(llm=llm, prompt=prompt)

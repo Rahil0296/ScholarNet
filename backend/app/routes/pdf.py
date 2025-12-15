@@ -2,6 +2,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from app.models.schemas import PDFResponse
 from app.services.pdf_processor import process_pdf, save_uploaded_file
+from app.utils.vector_store import add_documents_to_store
 from app.config import settings
 
 router = APIRouter()
@@ -27,7 +28,11 @@ async def read_pdf(file: UploadFile = File(...)):
         
         # Process PDF
         result = await process_pdf(file_path)
-        
+
+        # Add extracted text to vector store
+        if result["text"]:
+            add_documents_to_store([result["text"]], metadatas=[{"filename": file.filename}])
+
         return PDFResponse(
             text=result["text"],
             audio_url=result["audio_url"],
