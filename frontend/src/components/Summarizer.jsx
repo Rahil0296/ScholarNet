@@ -56,11 +56,13 @@ function Summarizer({ documentId }) {
 
       {/* Summary Display */}
       {summary && (
-        <div className="summary-result">
-          <h3>Summary ({summaryType})</h3>
-          <div className="summary-text">{summary}</div>
-        </div>
-      )}
+    <div>
+        <h3>Summary</h3>
+        <p>{summary.summary}</p>
+        
+        <ReadAloud text={summary.summary} />
+    </div>
+)}
 
       {error && <div className="error">{error}</div>}
     </div>
