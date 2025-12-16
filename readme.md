@@ -56,8 +56,8 @@ Most AI tools either:
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐        │
-│   │   React     │────▶│   FastAPI   │────▶│   OpenAI    │        │
-│   │   Frontend  │◀────│   Backend   │◀────│   GPT-3.5   │        │
+│   │   React     │────▶│   FastAPI   │────▶│   OpenAI    │       │
+│   │   Frontend  │◀────│   Backend   │◀────│   GPT-3.5   │       │
 │   └─────────────┘     └──────┬──────┘     └─────────────┘        │
 │                              │                                   │
 │                              ▼                                   │
@@ -66,7 +66,7 @@ Most AI tools either:
 │                       │  (Vectors)  │                            │
 │                       └─────────────┘                            │
 │                                                                  │
-│   PDF ──▶ Chunks ──▶ Embeddings ──▶ Vector Search ──▶ RAG        │
+│   PDF ──▶ Chunks ──▶ Embeddings ──▶ Vector Search ──▶ RAG      │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
